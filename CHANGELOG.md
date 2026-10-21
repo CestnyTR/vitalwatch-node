@@ -14,7 +14,7 @@ npm install vitalwatch-node@latest
 
 ---
 
-## Yayımlanmamış
+## 0.5.1
 
 ### Düzeltildi
 
