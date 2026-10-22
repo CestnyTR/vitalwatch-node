@@ -125,3 +125,29 @@ test('rastgele diziler yeni kuralla da maskelenir', () => {
         assert.strictEqual(Scrubber.text(input, 500), 'x [token] y');
     }
 });
+
+/*
+| .NET yığın izlerindeki uzun sınıf/metot adları `[token]` oluyordu (22 Ekim
+| 2026). Düz CamelCase ad jeton sayılmıyor; rakam, ardışık büyük harf ya da
+| tümü büyük harf taşıyan diziler eski kurala düşüyor.
+*/
+test('düz CamelCase adlar jeton sanılmaz', () => {
+    for (const input of [
+        'InvalidOperationException',
+        'HandleNonSuccessAndDebuggerNotification',
+        'System.InvalidOperationException: boom',
+    ]) {
+        assert.strictEqual(Scrubber.text(input, 500), input);
+    }
+});
+
+test('CamelCase istisnası rastgele dizileri kaçırmaz', () => {
+    for (const input of [
+        'x aB3dE5fG7hJ9kL1mN3pQ5rS7 y',
+        'x ABCDEFGHIJKLMNOPQRSTUVWXYZ y',
+        'x 5d41402abc4b2a76b9719d91 y',
+        'x abcDEfghIJklmnOPqrsTUvwxYZab y',
+    ]) {
+        assert.strictEqual(Scrubber.text(input, 500), 'x [token] y');
+    }
+});

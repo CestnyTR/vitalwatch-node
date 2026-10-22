@@ -72,6 +72,13 @@ function isCard(candidate) {
  * kısmı kaçabilir. Oturum kimliği, API anahtarı, JWT, hex ve UUID etkilenmez.
  */
 function isToken(candidate) {
+    // Düz CamelCase/camelCase ad jeton değildir: gerçek jeton ve oturum
+    // kimlikleri neredeyse hep rakam taşır; rakamsız, yan yana iki büyük
+    // harfi olmayan ve küçük harfle biten 24+ karakterlik rastgele dizinin
+    // olasılığı 1/10.000'in çok altında. .NET'in `InvalidOperationException`
+    // gibi adları maskeleniyor, yığın izleri okunmaz oluyordu.
+    if (/^[A-Za-z][a-z]+(?:[A-Z][a-z]+)+$/.test(candidate)) return false;
+
     if (candidate.split(/[-_]/).some((part) => part.length >= 16)) return true;
 
     const compact = candidate.replace(/[-_]/g, '');

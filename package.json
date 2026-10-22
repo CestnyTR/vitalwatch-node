@@ -1,6 +1,6 @@
 {
   "name": "vitalwatch-node",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "VitalWatch Hub için Node.js raporlayıcı — sunucu hataları, SSR hataları, yavaş istekler; Express, Next, Nuxt/Nitro, Fastify, Koa, Hono, NestJS, SvelteKit, React Router",
   "license": "MIT",
   "author": "CestnyTR",
