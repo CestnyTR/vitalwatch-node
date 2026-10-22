@@ -106,7 +106,9 @@ test('rota deseni kullanılır, gerçek id yolda taşınmaz', async () => {
     );
 
     assert.strictEqual(sent[0].route, 'GET /urunler/:id');
-    assert.ok(!JSON.stringify(sent[0]).includes('42'), 'gerçek id sızmamalı');
+    // Yalnızca yol aranır: olayın tamamında "42" aramak `memory_mb` ya da
+    // `duration_ms` 42 içerdiğinde CI'da rastgele düşüyordu.
+    assert.ok(!JSON.stringify(sent[0]).includes('/urunler/42'), 'gerçek id sızmamalı');
 });
 
 test('alt yola bağlı router da desenle raporlanır', async () => {
