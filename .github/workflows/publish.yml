@@ -1,0 +1,53 @@
+# Test + npm yayını — trusted publishing (OIDC), token yok.
+#
+# Her push'ta testler desteklenen Node sürümlerinde koşar (`engines: >=18.17`).
+# `v*` etiketi gönderildiğinde testler geçerse paket npm'e yüklenir. Yükleme
+# `npm` ortamında koşar; GitHub'da bu ortama onay kuralı eklenirse yayın elle
+# onaylanmadan çıkmaz.
+name: publish
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["18", "20", "22", "24"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      # Bağımlılık yok; yalnızca package-lock varsa kurulum.
+      - run: if [ -f package-lock.json ]; then npm ci; fi
+      - run: npm test
+
+  publish:
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+      # Trusted publishing npm 11.5.1+ istiyor; Node'la gelen sürüme güvenilmez.
+      - run: npm install -g npm@latest
+      # Etiket ile paket sürümü ayrışırsa yayın durur: v0.5.2 etiketi 0.5.1
+      # içeren bir paketi yüklememeli.
+      - name: Etiket ve sürüm eşleşiyor mu
+        run: |
+          version=$(node -p "require('./package.json').version")
+          test "v$version" = "$GITHUB_REF_NAME" || { echo "Etiket $GITHUB_REF_NAME, paket $version"; exit 1; }
+      - run: npm publish --provenance --access public
