@@ -62,7 +62,7 @@ test('sıfır olmayan kodla çıkan worker raporlanır', async () => {
     });
 
     assert.equal(raporlananlar.length, 1);
-    assert.match(String(raporlananlar[0].error.message), /3 koduyla/);
+    assert.match(String(raporlananlar[0].error.message), /exited with code 3/);
 });
 
 test('temiz çıkan worker raporlanmaz', async () => {

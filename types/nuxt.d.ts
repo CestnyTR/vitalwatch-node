@@ -1,8 +1,8 @@
 /**
- * Nuxt modülü: `modules: ['vitalwatch-node/nuxt']`.
+ * Nuxt module: `modules: ['vitalwatch-node/nuxt']`.
  *
- * Çalışma zamanı CommonJS (`module.exports = fn`, `.default` = fn); neden
- * `export =` olduğu için bkz. nitro.d.ts.
+ * The runtime is CommonJS (`module.exports = fn`, `.default` = fn); for why
+ * it uses `export =`, see nitro.d.ts.
  */
 declare function vitalwatchNuxtModule(options: unknown, nuxt: unknown): void;
 

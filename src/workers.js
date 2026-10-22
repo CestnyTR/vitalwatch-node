@@ -127,10 +127,10 @@ function gozle(target, event, args, report, route) {
      * sonlandırmış ya da öldürülmüş. Ebeveynde başka hiçbir belirtisi olmaz.
      */
     const signal = args[1];
-    const name = route === 'worker' ? 'Worker' : 'Alt süreç';
+    const name = route === 'worker' ? 'Worker' : 'Child process';
 
     report(
-        new Error(`${name} ${code} koduyla sonlandı${signal ? ` (${signal})` : ''}`),
+        new Error(`${name} exited with code ${code}${signal ? ` (${signal})` : ''}`),
         { kind: 'exception', route },
     );
 }

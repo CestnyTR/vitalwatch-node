@@ -8,14 +8,25 @@ Kardeş paketler: [vitalwatch-laravel](https://github.com/CestnyTR/vitalwatch-la
 
 ## Dil
 
-Yorumlar ve dokümantasyon Türkçe; **sınıf, fonksiyon ve değişken adları İngilizce** —
+Kod yorumları Türkçe; **sınıf, fonksiyon ve değişken adları İngilizce** —
 yerel değişkenler dahil. Kardeş paketlerle (`cestnytr/vitalwatch-laravel`) aynı kural.
 
 Bu paket kurulurken "yerel değişkenler Türkçe olabilir" diye gevşek bir istisna yazılmıştı;
 kaldırıldı. Karışık adlandırma okumayı zorlaştırıyor ve iki paket arasında geçiş yapan
 kişiyi yavaşlatıyor.
 
-README ve public API dokümantasyonu Türkçe.
+**Kullanıcının gördüğü her şey İngilizce** — karar 22 Ekim 2026; paketler public ve
+uluslararası kitleye yayınlanıyor:
+
+- README, CHANGELOG, paket açıklaması (`package.json` `description`)
+- CLI çıktısı ve yardım metni (`vitalwatch-status`), SDK'nın yazdığı log/uyarılar
+- Public API belgeleri: `types/*.d.ts` JSDoc'u (IntelliSense'te görünür)
+- SDK'nın kendi ürettiği olay mesajları (`msg`, `new Error(...)`) — değiştirmek hub'da
+  parmak izini bir kez böler, CHANGELOG'da belirtilir
+
+**İç kod yorumları Türkçe kalır** (`src/`, `bin/`, testler — yalnızca bakımcı okur).
+Test adları Türkçe olabilir. `vitalwatch-status` etiketleri kardeş SDK'larla aynı
+İngilizce ifadeleri kullanır ("SDK version", "Latest version", "Release tag" …).
 
 ---
 

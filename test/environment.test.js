@@ -46,7 +46,7 @@ test('vitalwatch-status tanınmayan ortamda hata verir', () => {
     };
 
     assert.throws(() => execFileSync(process.execPath, [bin], { env, cwd: __dirname, stdio: 'pipe' }), (error) =>
-        String(error.stdout).concat(String(error.stderr)).includes('kabul edilmez'),
+        String(error.stdout).concat(String(error.stderr)).includes('is not accepted by the hub'),
     );
 
     const good = execFileSync(process.execPath, [bin], { env: { ...env, VITALWATCH_ENV: 'prod' }, cwd: __dirname, stdio: 'pipe' });

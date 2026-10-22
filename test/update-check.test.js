@@ -128,39 +128,39 @@ function runStatus(fetchBody, extraEnv = {}) {
 test('vitalwatch-status güncel sürümü gösterir; güncelleme uyarıdır, başarısızlık değil', () => {
     const newer = runStatus({ version: '99.0.0' });
     assert.strictEqual(newer.status, 0, newer.stderr);
-    assert.match(newer.stdout, /Güncel sürüm\s+99\.0\.0/);
-    assert.ok(newer.stdout.includes('Güncelleme var: npm install vitalwatch-node@latest'));
+    assert.match(newer.stdout, /Latest version\s+99\.0\.0/);
+    assert.ok(newer.stdout.includes('Update available: npm install vitalwatch-node@latest'));
 
     const same = runStatus({ version });
     assert.strictEqual(same.status, 0, same.stderr);
-    assert.match(same.stdout, new RegExp(`Güncel sürüm\\s+${version.replace(/\./g, '\\.')}`));
-    assert.ok(!same.stdout.includes('Güncelleme var'));
+    assert.match(same.stdout, new RegExp(`Latest version\\s+${version.replace(/\./g, '\\.')}`));
+    assert.ok(!same.stdout.includes('Update available'));
 });
 
-test('vitalwatch-status npm e ulaşamazsa "denetlenemedi" yazar, çıkış kodu değişmez', () => {
+test('vitalwatch-status npm e ulaşamazsa "could not check" yazar, çıkış kodu değişmez', () => {
     const result = runStatus(null);
 
     assert.strictEqual(result.status, 0, result.stderr);
-    assert.match(result.stdout, /Güncel sürüm\s+denetlenemedi/);
+    assert.match(result.stdout, /Latest version\s+could not check/);
 });
 
 test('vitalwatch-status çevrimdışı modda güncelleme satırı basmaz ve fetch çağırmaz', () => {
     const result = runStatus(null, { VITALWATCH_STATUS_OFFLINE: '1' });
 
     assert.strictEqual(result.status, 0, result.stderr);
-    assert.ok(!result.stdout.includes('Güncel sürüm'));
+    assert.ok(!result.stdout.includes('Latest version'));
 });
 
 test('vitalwatch-status sürüm etiketini ve kaynağını gösterir', () => {
     const fromEnv = runStatus(null, { VITALWATCH_STATUS_OFFLINE: '1', VITALWATCH_RELEASE: 'v9' });
-    assert.match(fromEnv.stdout, /Sürüm etiketi\s+v9 \(kaynak: VITALWATCH_RELEASE\)/);
+    assert.match(fromEnv.stdout, /Release tag\s+v9 \(source: VITALWATCH_RELEASE\)/);
 
     const fromCi = runStatus(null, { VITALWATCH_STATUS_OFFLINE: '1', CI_COMMIT_SHA: 'ABCDEF1234567890' });
-    assert.match(fromCi.stdout, /Sürüm etiketi\s+abcdef123456 \(kaynak: CI_COMMIT_SHA\)/);
+    assert.match(fromCi.stdout, /Release tag\s+abcdef123456 \(source: CI_COMMIT_SHA\)/);
 
     // Geçici dizinde .git yok, değişken yok.
     const none = runStatus(null, { VITALWATCH_STATUS_OFFLINE: '1' });
-    assert.match(none.stdout, /Sürüm etiketi\s+tanımsız \(kaynak: yok\)/);
+    assert.match(none.stdout, /Release tag\s+not set \(source: none\)/);
 });
 
 /* Laravel ve Python paketleriyle aynı kabul kümesi. */

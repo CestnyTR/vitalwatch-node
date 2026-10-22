@@ -1,11 +1,11 @@
 /**
- * Nitro sunucu eklentisi: `export default defineNitroPlugin(vitalwatch)`.
+ * Nitro server plugin: `export default defineNitroPlugin(vitalwatch)`.
  *
- * Çalışma zamanı CommonJS (`module.exports = fn`, `.default` = fn). Bu yüzden
- * `export default` değil `export =` + ad alanı: `export default` yazılınca
- * `moduleResolution: node16/nodenext` altında ESM'den varsayılan içe aktarım
- * `{ default: fn }` tipinde görünüyor ve `defineNitroPlugin(vitalwatch)` tip
- * hatası veriyordu. `bundler` çözümlemesi ikisini de kabul ediyor.
+ * The runtime is CommonJS (`module.exports = fn`, `.default` = fn). Hence
+ * `export =` + a namespace instead of `export default`: with `export default`,
+ * under `moduleResolution: node16/nodenext` a default ESM import was typed as
+ * `{ default: fn }` and `defineNitroPlugin(vitalwatch)` failed to type-check.
+ * `bundler` resolution accepts both.
  */
 declare function vitalwatchNitro(nitroApp: unknown): void;
 
