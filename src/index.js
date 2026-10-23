@@ -6,6 +6,7 @@ const Scrubber = require('./scrubber');
 const { hookWorkers } = require('./workers');
 const { markReported } = require('./route');
 const { resolveRelease } = require('./release');
+const { DependencySchedule, readDependencies } = require('./dependencies');
 
 /**
  * vitalwatch-node — Node tarafı raporlayıcı.
@@ -46,6 +47,8 @@ function fromEnvironment() {
         slowRequestMs: e.VITALWATCH_SLOW_REQUEST_MS
             ? Number(e.VITALWATCH_SLOW_REQUEST_MS)
             : 1000,
+        // Varsayılan açık; yalnızca açık `false` kapatır (ENABLED ile aynı kural).
+        dependencies: e.VITALWATCH_DEPENDENCIES !== 'false',
     };
 }
 
@@ -153,6 +156,79 @@ function stopHeartbeat() {
     }
 }
 
+/** @type {DependencySchedule|null} */
+let dependencySchedule = null;
+
+/**
+ * Bağımlılık listesini arka planda gönderir: başlangıçtan 60 sn sonra, sonra
+ * saatlik kontrolde özet değiştiyse ya da 24 saat geçtiyse. Bkz.
+ * dependencies.js. Zamanlayıcılar `unref`; süreci ayakta tutmaz.
+ *
+ * Kapalıysa (`VITALWATCH_ENABLED=false` ya da `VITALWATCH_DEPENDENCIES=false`)
+ * kilit dosyası okunmaz bile. Yapılandırma kontrolü her turda yapılır:
+ * ön yüklemede `.env` geç gelebiliyor.
+ *
+ * @param {Record<string, unknown>} [options] yalnızca test için zamanlama
+ */
+function startDependencies(options = {}) {
+    try {
+        if (dependencySchedule) return dependencySchedule;
+
+        const r = reporter();
+        if (!r.enabled || !r.dependencies) return null;
+
+        dependencySchedule = new DependencySchedule({
+            read: () => {
+                const current = reporter();
+
+                return current.configured() && current.dependencies
+                    ? readDependencies()
+                    : { supported: false, error: 'disabled' };
+            },
+            send: (dependencies) => reporter().sendDependencies(dependencies),
+            ...options,
+        });
+
+        dependencySchedule.start();
+
+        return dependencySchedule;
+    } catch {
+        return null;
+    }
+}
+
+function stopDependencies() {
+    if (dependencySchedule) {
+        dependencySchedule.stop();
+        dependencySchedule = null;
+    }
+}
+
+/**
+ * Bağımlılık listesini hemen gönderir (`vitalwatch-status --deps`).
+ * Fırlatmaz.
+ *
+ * @returns {Promise<{sent: boolean, status?: number, error?: string, packages?: number}>}
+ */
+async function sendDependencies() {
+    try {
+        const r = reporter();
+
+        if (!r.configured()) return { sent: false, error: 'missing-config' };
+        if (!r.dependencies) return { sent: false, error: 'disabled' };
+
+        const result = readDependencies();
+        if (!result.supported) return { sent: false, error: result.error };
+
+        return {
+            ...(await r.sendDependencies(result.dependencies)),
+            packages: result.dependencies.packages.length,
+        };
+    } catch (e) {
+        return { sent: false, error: (e && e.message) || String(e) };
+    }
+}
+
 function hookProcess() {
     const r = reporter();
 
@@ -180,6 +256,7 @@ function hookProcess() {
     // Kancalarla birlikte: hookProcess her kurulum reçetesinin ortak adımı,
     // canlılığın ayrıca hatırlanması gereken bir çağrı olmaması gerekiyor.
     startHeartbeat();
+    startDependencies();
 
     return r;
 }
@@ -209,6 +286,9 @@ module.exports = {
     hookProcess,
     startHeartbeat,
     stopHeartbeat,
+    startDependencies,
+    stopDependencies,
+    sendDependencies,
     reporter,
     Reporter,
     Scrubber,

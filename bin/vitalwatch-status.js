@@ -14,16 +14,42 @@
  * göstermek ve doğrulamanın hub panelinden yapılacağını söylemek.
  */
 
-const { init, report, reporter, version } = require('../src/index');
+const { init, report, reporter, sendDependencies, version } = require('../src/index');
 const { env: readEnv } = require('../src/env');
 const { normalizeEnv, acceptedEnv } = require('../src/environment');
 const { resolveRelease } = require('../src/release');
 const { checkForUpdate } = require('../src/update-check');
+const { readDependencies, MANIFEST } = require('../src/dependencies');
 
 const SECRET_LENGTH = 64;
 
 function line(label, value) {
     console.log(`  ${label.padEnd(18)} ${value}`);
+}
+
+/** `Dependencies` satırı: kaynak ve paket sayısı ya da neden gönderilmediği. */
+function dependencyStatus(e) {
+    if (e.VITALWATCH_DEPENDENCIES === 'false') return 'disabled';
+
+    const result = readDependencies(process.cwd());
+
+    if (result.supported) return `${MANIFEST} · ${result.dependencies.packages.length} packages`;
+    if (result.error === 'unreadable-lockfile') return `could not read ${MANIFEST}`;
+
+    return `not supported (no ${MANIFEST})`;
+}
+
+function dependencyError(result) {
+    const reasons = {
+        disabled: 'disabled (VITALWATCH_DEPENDENCIES=false)',
+        'no-lockfile': `not supported (no ${MANIFEST})`,
+        'unreadable-lockfile': `could not read ${MANIFEST}`,
+        'too-large': 'list is larger than 500 KB',
+    };
+
+    if (!result) return 'unknown reason';
+
+    return reasons[result.error] || result.error || `HTTP ${result.status}`;
 }
 
 async function run() {
@@ -66,6 +92,7 @@ async function run() {
             ? `${release.value} (source: ${release.source})`
             : 'not set (source: none)',
     );
+    line('Dependencies', dependencyStatus(e));
     line('Node', process.version);
     console.log('');
 
@@ -153,6 +180,26 @@ async function run() {
             console.error(
                 `  ✗ Heartbeat NOT SENT: ${(result && (result.error ?? `HTTP ${result.status}`)) || 'unknown reason'}`,
             );
+            console.log('');
+            process.exitCode = 1;
+
+            return;
+        }
+    }
+
+    /*
+     * `--deps`: bağımlılık listesini hemen gönderir. Uygulamada ilk gönderim
+     * başlangıçtan 60 sn sonra; kuran kişi bunu beklemeden sınayabilsin.
+     * `--test` bilerek göndermez — tek bir test olayı istendi.
+     */
+    if (process.argv.includes('--deps')) {
+        init();
+        const result = await sendDependencies();
+
+        if (result && result.sent) {
+            console.log(`  ✓ Dependency list sent: ${result.packages} packages (HTTP ${result.status}).`);
+        } else {
+            console.error(`  ✗ Dependency list NOT SENT: ${dependencyError(result)}`);
             console.log('');
             process.exitCode = 1;
 

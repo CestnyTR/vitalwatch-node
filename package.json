@@ -1,6 +1,6 @@
 {
   "name": "vitalwatch-node",
-  "version": "0.5.3",
+  "version": "0.6.0",
   "description": "Node.js reporter for VitalWatch Hub — server errors, SSR errors, slow requests; Express, Next, Nuxt/Nitro, Fastify, Koa, Hono, NestJS, SvelteKit, React Router",
   "license": "MIT",
   "author": "CestnyTR",

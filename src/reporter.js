@@ -3,6 +3,7 @@
 const { HubClient } = require('./client');
 const Scrubber = require('./scrubber');
 const { normalizeEnv } = require('./environment');
+const { MAX_BODY_BYTES } = require('./dependencies');
 
 const SDK_VERSION = require('../package.json').version;
 
@@ -41,6 +42,10 @@ class Reporter {
         this.source = options.source || 'server';
         this.slowRequestMs = options.slowRequestMs ?? 1000;
         this.ignore = options.ignore || [];
+        // VITALWATCH_DEPENDENCIES=false bağımlılık listesini kapatır; diğer
+        // gönderimler etkilenmez.
+        this.dependencies = options.dependencies !== false;
+        this.warnedOversize = false;
 
         /*
          * Aynı hatayı iki kez raporlamamak için. WeakSet: hata nesnesi çöp
@@ -160,6 +165,17 @@ class Reporter {
      * @returns {Promise<{sent: boolean, status?: number, error?: string}>}
      */
     async send(event) {
+        return await this.client.send(this.withIdentity(event));
+    }
+
+    /**
+     * Olaya ortak kimlik alanlarını ekler; boş alanlar atılır. `/server` ve
+     * `/deps` aynı alanları taşır.
+     *
+     * @param {Record<string, unknown>} event
+     * @returns {Record<string, unknown>}
+     */
+    withIdentity(event) {
         const body = {
             ...event,
             env: this.env,
@@ -181,7 +197,47 @@ class Reporter {
             }
         }
 
-        return await this.client.send(body);
+        return body;
+    }
+
+    /**
+     * Bağımlılık listesini `/deps` ucuna gönderir. Fırlatmaz.
+     *
+     * Serileştirilmiş gövde 500 KB'ı aşarsa hiç gönderilmez: hub 512 KB
+     * üstünü sessizce atıyor, yarım liste ise yanlış "açık yok" demek olurdu.
+     * Uyarı süreç başına bir kez yazılır — günlük gönderim log kirletmesin.
+     *
+     * @param {object} dependencies `readDependencies().dependencies`
+     * @returns {Promise<{sent: boolean, status?: number, error?: string}>}
+     */
+    async sendDependencies(dependencies) {
+        try {
+            if (!this.configured()) {
+                return { sent: false, error: 'missing-config' };
+            }
+
+            if (!this.dependencies) {
+                return { sent: false, error: 'disabled' };
+            }
+
+            const body = JSON.stringify(this.withIdentity({ dependencies }));
+
+            if (Buffer.byteLength(body, 'utf8') > MAX_BODY_BYTES) {
+                if (!this.warnedOversize) {
+                    this.warnedOversize = true;
+                    console.warn(
+                        '[vitalwatch] Dependency list is larger than 500 KB and was not sent. ' +
+                            'Set VITALWATCH_DEPENDENCIES=false to silence this warning.',
+                    );
+                }
+
+                return { sent: false, error: 'too-large' };
+            }
+
+            return await this.client.send(body, 'deps');
+        } catch (e) {
+            return { sent: false, error: (e && e.message) || String(e) };
+        }
     }
 
     /**

@@ -14,6 +14,31 @@ npm install vitalwatch-node@latest
 
 ---
 
+## 0.6.0
+
+### Added
+
+- **Dependency advisories.** The names and versions of production packages from
+  `package-lock.json` (lockfileVersion 1, 2 and 3) are sent to the new hub endpoint
+  `POST /api/i/{key}/deps`, signed like events; the hub checks them against OSV.dev.
+  Sent 60 seconds after start, re-checked hourly, sent again when the list changes and at
+  least every 24 hours. Dev dependencies and local links are skipped; at most 5000
+  packages; bodies over 500 KB are not sent (one warning). Nothing is persisted to disk —
+  a restart re-sends once. Timers are `unref`'d.
+- `VITALWATCH_DEPENDENCIES=false` / `init({ dependencies: false })` turns it off.
+- `vitalwatch-status` shows a `Dependencies` line; `--deps` sends the list immediately and
+  prints the HTTP status. `--test` does not send it.
+- New exports: `startDependencies()`, `stopDependencies()`, `sendDependencies()`,
+  `Reporter#sendDependencies()`; types `DependencyList`, `DependencyPackage`.
+
+### Known limitations
+
+- pnpm, yarn and bun projects (no `package-lock.json`) send nothing; the status command
+  reports `not supported (no package-lock.json)`. Next.js standalone builds without the
+  lock file send nothing either.
+
+---
+
 ## 0.5.3
 
 ### Changed

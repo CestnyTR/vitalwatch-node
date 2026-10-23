@@ -56,6 +56,7 @@ and that silence gets mistaken for "all good".
 ```bash
 npx vitalwatch-status --test         # a real test event — shows up in the panel as an error
 npx vitalwatch-status --vitalwatch   # liveness request only — no error in the panel
+npx vitalwatch-status --deps         # send the dependency list now (see Dependency advisories)
 ```
 
 `--test` is the right choice when verifying a single installation: transport and scrubbing
@@ -70,6 +71,8 @@ own, because the hub gives valid and invalid signatures the same response.
 The command also shows:
 
 - **Release tag** and where it was found (see [Release tag](#release-tag)).
+- **Dependencies:** `package-lock.json · N packages`, `disabled` or
+  `not supported (no package-lock.json)` (see [Dependency advisories](#dependency-advisories)).
 - **Latest version:** the newest version on npm (`registry.npmjs.org`, 2-second timeout).
   If it is newer than the installed one, it prints the warning
   `Update available: npm install vitalwatch-node@latest`. This is a
@@ -478,6 +481,69 @@ stopHeartbeat();
 
 Nothing is sent while `VITALWATCH_ENABLED=false` or when configuration is incomplete.
 
+## Dependency advisories
+
+The package sends the hub the **names and versions of your production packages** so the
+hub can check them against [OSV.dev](https://osv.dev) and alert you when a dependency has a
+known vulnerability.
+
+| | |
+|---|---|
+| Source | `package-lock.json` in the app root (`process.cwd()`), lockfileVersion 1, 2 and 3 |
+| What is sent | `name` + `version` of each installed production package — nothing else. Dev dependencies (`dev: true`), local links (`link: true` / `file:`) and the root project are skipped. Nested copies with a different version are kept |
+| Endpoint | `POST /api/i/{key}/deps`, signed exactly like events |
+| First send | 60 seconds after the process starts (in the background, never blocks startup) |
+| After that | The lock file is re-read every hour; the list is sent again when it changed, and at least every 24 hours |
+| Limits | At most 5000 packages. If the body would exceed 500 KB nothing is sent and one warning is logged |
+
+Body (trimmed):
+
+```json
+{
+  "env": "production",
+  "source": "server",
+  "runtime": "node",
+  "runtime_version": "v22.11.0",
+  "sdk_version": "0.6.0",
+  "dependencies": {
+    "v": 1,
+    "ecosystem": "npm",
+    "manifest": "package-lock.json",
+    "hash": "<sha256 of the sorted name@version lines>",
+    "packages": [{ "name": "next", "version": "16.1.6" }]
+  }
+}
+```
+
+Nothing is written to disk: the last sent list lives in process memory, so a restart sends
+it once more — harmless for the hub. The timers are `unref`'d and do not keep the process
+alive. It starts with `hookProcess()` (zero-code setup, Next `instrumentation.ts`, the
+Express recipes); `startDependencies()` / `stopDependencies()` manage it manually.
+
+**Known limitations:**
+
+- **pnpm, yarn and bun projects are not supported** — only `package-lock.json` is read
+  (parsing other lock formats would need a dependency). Nothing is sent and
+  `vitalwatch-status` shows `not supported (no package-lock.json)`.
+- **Next.js `output: 'standalone'`** builds usually run without `package-lock.json` next
+  to `server.js`; then nothing is sent. Copy the lock file into the standalone folder if
+  you want advisories.
+
+To turn it off:
+
+```bash
+VITALWATCH_DEPENDENCIES=false
+```
+
+or `init({ dependencies: false })`. Nothing is sent while `VITALWATCH_ENABLED=false` either.
+
+Check and send now:
+
+```bash
+npx vitalwatch-status          # "Dependencies  package-lock.json · 312 packages"
+npx vitalwatch-status --deps   # sends the list immediately and prints the HTTP status
+```
+
 ## What it does not collect
 
 These cannot be enabled even through configuration — there is no code for them:
@@ -509,7 +575,7 @@ The package must **never affect** the application it is installed in:
 4. **If the hub is unreachable, it gives up silently.** No errors, log noise or slowdown in
    the monitored application.
 5. **Nothing is sent while `VITALWATCH_ENABLED=false`.**
-6. **The heartbeat does not keep the process alive.** The timer is `unref`'d; a script that
+6. **Background timers do not keep the process alive.** The heartbeat and dependency timers are `unref`'d; a script that
    has finished its work exits.
 
 > A monitoring package breaking the application it monitors is a bigger problem than the
@@ -529,6 +595,7 @@ The package must **never affect** the application it is installed in:
 | `VITALWATCH_RELEASE` | automatic | Release tag (commit sha, tag). Detected when empty, see [Release tag](#release-tag) |
 | `VITALWATCH_TIMEOUT` | `2000` | Send timeout in **ms**. Values below 100 are treated as seconds (`2` → 2000 ms) — the Laravel and Python packages expect seconds under the same name. The result is clamped to 100–10000 ms; invalid, zero or negative values fall back to 2000. The rule is the same across all packages |
 | `VITALWATCH_SLOW_REQUEST_MS` | `1000` | Requests taking longer than this are considered slow |
+| `VITALWATCH_DEPENDENCIES` | `true` | If `false`, the production dependency list is not sent, see [Dependency advisories](#dependency-advisories) |
 
 Can also be set in code:
 

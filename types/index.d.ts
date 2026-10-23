@@ -34,6 +34,29 @@ export interface VitalWatchOptions {
     ignore?: Array<string | Function>;
     /** 'server' | 'ssr' */
     source?: string;
+    /**
+     * Send the names and versions of production packages from
+     * `package-lock.json` so the hub can raise dependency advisories.
+     * Default true; `VITALWATCH_DEPENDENCIES=false` turns it off.
+     */
+    dependencies?: boolean;
+}
+
+/** One production package from `package-lock.json`. */
+export interface DependencyPackage {
+    name: string;
+    version: string;
+}
+
+/** The `dependencies` object sent to the hub's `/deps` endpoint. */
+export interface DependencyList {
+    v: 1;
+    ecosystem: 'npm';
+    manifest: 'package-lock.json';
+    /** sha256 hex of `name@version\n` lines, sorted by name then version. */
+    hash: string;
+    /** Sorted, deduplicated, at most 5000 entries. */
+    packages: DependencyPackage[];
 }
 
 export interface EventContext {
@@ -75,6 +98,12 @@ export declare class Reporter {
         status: number;
         durationMs: number;
     }): Promise<void>;
+    /**
+     * Sends a dependency list to the hub's `/deps` endpoint. Never throws.
+     * Nothing is sent if the serialized body exceeds 500 KB (a warning is
+     * logged once per process).
+     */
+    sendDependencies(dependencies: DependencyList): Promise<SendResult>;
 }
 
 /** Sets up the reporter. If not called, it is configured from the environment on first use. */
@@ -97,6 +126,19 @@ export declare function reporter(): Reporter;
 export declare function startHeartbeat(intervalMs?: number): ReturnType<typeof setInterval>;
 
 export declare function stopHeartbeat(): void;
+
+/**
+ * Sends the production dependency list in the background: 60 s after start,
+ * then re-checked hourly and sent again when `package-lock.json` changed or
+ * 24 hours have passed. Timers are `unref`ed. Does nothing when disabled or
+ * when there is no `package-lock.json`. `hookProcess()` already calls this.
+ */
+export declare function startDependencies(): unknown;
+
+export declare function stopDependencies(): void;
+
+/** Reads `package-lock.json` and sends the dependency list now. Never throws. */
+export declare function sendDependencies(): Promise<SendResult & { packages?: number }>;
 
 /** Express/Connect middleware. Register it before your routes. */
 export declare function express(options?: VitalWatchOptions): (

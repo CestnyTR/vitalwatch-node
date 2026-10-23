@@ -36,16 +36,22 @@ class HubClient {
      * sanıyordu. Teşhis aracının yanlış teşhis koyması, hiç teşhis koymamaktan
      * kötüdür.
      *
+     * `endpoint`: `server` (olaylar, canlılık) ya da `deps` (bağımlılık
+     * listesi). İmza kodu ikisinde aynı — hub da aynı doğrulamayı yapıyor.
+     *
      * @param {Record<string, unknown>} payload
+     * @param {'server'|'deps'} [endpoint]
      * @returns {Promise<{sent: boolean, status?: number, error?: string}>}
      */
-    async send(payload) {
+    async send(payload, endpoint = 'server') {
         if (!this.configured()) {
             return { sent: false, error: 'missing-config' };
         }
 
         try {
-            const body = JSON.stringify(payload);
+            // Dize: çağıran zaten serileştirdi (bağımlılık gövdesinin boyutu
+            // gönderimden önce ölçülüyor; iki kez serileştirmeye gerek yok).
+            const body = typeof payload === 'string' ? payload : JSON.stringify(payload);
 
             if (body === undefined) {
                 return { sent: false, error: 'body-encode-failed' };
@@ -64,7 +70,7 @@ class HubClient {
              * kullanıcının isteğini bekletmemeli.
              */
             const response = await fetch(
-                `${this.url.replace(/\/+$/, '')}/api/i/${encodeURIComponent(this.key)}/server`,
+                `${this.url.replace(/\/+$/, '')}/api/i/${encodeURIComponent(this.key)}/${endpoint === 'deps' ? 'deps' : 'server'}`,
                 {
                     method: 'POST',
                     body,
